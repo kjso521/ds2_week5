@@ -1,5 +1,5 @@
 import os
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field
 from enum import Enum
 from argparse import ArgumentParser
 import torch
@@ -34,9 +34,9 @@ class GeneralConfig:
         default_root: str = "dataset"
     
     DATA_ROOT: str = default_root
-    train_dataset: list[str] = fields(default_factory=lambda: [os.path.join(GeneralConfig.DATA_ROOT, "train")])
-    valid_dataset: list[str] = fields(default_factory=lambda: [os.path.join(GeneralConfig.DATA_ROOT, "val")])
-    test_dataset: list[str] = fields(default_factory=lambda: [os.path.join(GeneralConfig.DATA_ROOT, "val")])
+    train_dataset: list[str] = field(default_factory=lambda: [os.path.join(GeneralConfig.DATA_ROOT, "train")])
+    valid_dataset: list[str] = field(default_factory=lambda: [os.path.join(GeneralConfig.DATA_ROOT, "val")])
+    test_dataset: list[str] = field(default_factory=lambda: [os.path.join(GeneralConfig.DATA_ROOT, "val")])
     data_type: str = "*.npy"
 
     # --- Logging parameters ---
@@ -46,8 +46,8 @@ class GeneralConfig:
 
     # --- Training parameters ---
     augmentation_mode: str = "both"
-    noise_levels: list[float] = fields(default_factory=lambda: [0.07, 0.132])
-    conv_directions: list[tuple[float, float]] = fields(default_factory=lambda: [(-0.809, -0.5878), (-0.809, 0.5878), (0.309, -0.9511), (0.309, 0.9511), (1.0, 0.0)])
+    noise_levels: list[float] = field(default_factory=lambda: [0.07, 0.132])
+    conv_directions: list[tuple[float, float]] = field(default_factory=lambda: [(-0.809, -0.5878), (-0.809, 0.5878), (0.309, -0.9511), (0.309, 0.9511), (1.0, 0.0)])
     model_type: str = "dncnn"
     optimizer: str = "adam"
     loss_model: str = "l2"
