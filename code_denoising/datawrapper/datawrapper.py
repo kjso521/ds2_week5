@@ -70,7 +70,7 @@ class RandomDataWrapper(Dataset):
         self.conv_directions = conv_directions
 
         # 시뮬레이터들을 미리 초기화해둡니다.
-        self.noise_simulator = NoiseSimulator(noise_sigma=0.0) # sigma는 __getitem__에서 매번 덮어씀
+        self.noise_simulator = NoiseSimulator(noise_type=self.noise_type, noise_sigma=0.0) # sigma는 __getitem__에서 매번 덮어씀
         self.forward_simulator = ForwardSimulator()
 
         total_list: list[str] = []
