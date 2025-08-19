@@ -33,12 +33,7 @@ from common.utils import (
     separator,
 )
 from common.wrapper import error_wrap
-from core_funcs import (
-    get_loss_model,
-    get_model,
-    get_optimizer,
-    save_checkpoint,
-)
+from core_funcs import get_model, get_optimizer, get_loss_model, save_checkpoint, test_part
 from datawrapper.datawrapper import DataKey, get_data_wrapper_loader, LoaderConfig
 from params import config, dncnnconfig, unetconfig, parse_args_for_train_script
 
