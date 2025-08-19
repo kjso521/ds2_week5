@@ -344,7 +344,5 @@ def test_part(
 
             img_cnt += batch_cnt
 
-    log_summary(init_time=config.init_time, state=test_state, log_std=True)
-
-    primary_metric = test_state.mean("psnr")
-    return primary_metric
+    # log_summary(init_time=config.init_time, state=test_state, log_std=True)
+    return test_state.mean("psnr")
