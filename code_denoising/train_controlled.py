@@ -217,7 +217,7 @@ class Trainer:
 
         if avg_psnr > self.best_metric:
             logger.success("Best model renewed")
-            save_checkpoint(self.model, self.run_dir, is_best=True)
+            save_checkpoint(self.model, self.run_dir) # is_best=True 대신 파일이름을 지정하지 않는 방식으로 호출
             return True
         return False
 
@@ -226,8 +226,22 @@ class Trainer:
         logger.info(f"Test with {tag} model from epoch {epoch}")
         
         if tag == "best":
-            checkpoint = torch.load(self.run_dir / "best.ckpt")
-            self.model.load_state_dict(checkpoint['network_state_dict'])
+            checkpoint_path = self.run_dir / "best.ckpt"
+            if not checkpoint_path.exists():
+                logger.warning(f"best.ckpt not found in {self.run_dir}. Skipping test.")
+                return
+            checkpoint = torch.load(checkpoint_path)
+            # 'network_state_dict'가 없을 경우를 대비하여 'model_state_dict'도 확인
+            state_dict = checkpoint.get('network_state_dict') or checkpoint.get('model_state_dict')
+            if state_dict:
+                # DataParallel 래핑 핸들링
+                if isinstance(self.model, DataParallel):
+                    self.model.module.load_state_dict(state_dict)
+                else:
+                    self.model.load_state_dict(state_dict)
+            else:
+                logger.error("Could not find a valid state_dict in the checkpoint.")
+
 
         self.model.eval()
         # Test logic can be added here if needed, e.g., saving outputs
