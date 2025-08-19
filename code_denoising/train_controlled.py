@@ -74,10 +74,11 @@ class Trainer:
         os.environ["CUDA_VISIBLE_DEVICES"] = str(config.gpu)
 
         self.best_metric: float = 0.0
-        self.best_epoch: int = 0
+        self.train_epoch: int = config.train_epoch
+        self.epoch: int = 0
+        self.primary_metric: float = 0.0
         self.tol_count: int = 0
         self.global_step: int = 0
-        self.primary_metric: float = 0.0
 
     def __call__(self) -> None:
         self._set_data()
