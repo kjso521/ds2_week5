@@ -27,6 +27,7 @@ from .common.utils import (
     validate_tensor_dimensions,
     validate_tensors,
 )
+from .components.metriccontroller import MetricController
 from .datawrapper.datawrapper import DataKey
 
 
@@ -125,21 +126,6 @@ def set_optimizer_lr(
     for param_group in optimizer.param_groups:
         param_group["lr"] = learning_rate
     return optimizer
-
-
-def log_summary(
-    init_time: float,
-    state: MetricController,
-    log_std: bool = False,
-) -> None:
-    spend_time = seconds_to_dhms(time.time() - init_time)
-    for key in state.state_dict:
-        if log_std:
-            summary = f"{spend_time} | {key}: {state.mean(key):0.3e} + {state.std(key):0.3e} "
-            logger.info(summary)
-        else:
-            summary = f"{spend_time} | {key}: {state.mean(key):0.3e}"
-            logger.info(summary)
 
 
 def save_checkpoint(
