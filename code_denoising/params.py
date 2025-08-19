@@ -14,7 +14,15 @@ from typing import Literal
 
 import torch
 
-default_root: str = "dataset"
+# --- 경로 설정 로직 수정 ---
+# Colab 환경인지 확인합니다 ('COLAB_GPU'는 Colab에서 기본으로 설정되는 환경 변수).
+if 'COLAB_GPU' in os.environ:
+    # Colab 환경이라면 로컬 런타임의 데이터셋 경로를 사용합니다.
+    default_root: str = "/content/dataset"
+else:
+    # 로컬 환경이라면 프로젝트 상대 경로를 사용합니다.
+    default_root: str = "dataset"
+
 DATA_ROOT: str = os.environ.get("DATA_ROOT", default_root)
 
 # 이제 학습 데이터셋은 항상 원본 'train' 폴더를 가리킵니다.
