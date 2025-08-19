@@ -30,8 +30,8 @@ from core_funcs import (
     get_optimizer,
     save_checkpoint,
 )
-from datawrapper.datawrapper_controlled import DataKey, get_data_wrapper_loader
-from params import config, dncnnconfig
+from datawrapper.datawrapper import DataKey, get_data_wrapper_loader, LoaderConfig
+from params import config, dncnnconfig, unetconfig
 
 warnings.filterwarnings("ignore")
 
@@ -73,9 +73,15 @@ class Trainer:
             logger.info(f"{k}:{config_dict[k]}")
         logger.info(separator())
         logger.info("Model Config")
-        config_dict = asdict(dncnnconfig)
-        for k in config_dict:
-            logger.info(f"{k}:{config_dict[k]}")
+        if config.model_type == "dncnn":
+            model_config_dict = asdict(dncnnconfig)
+        elif config.model_type == "unet":
+            model_config_dict = asdict(unetconfig)
+        else:
+            model_config_dict = {}
+        
+        for k in model_config_dict:
+            logger.info(f"{k}:{model_config_dict[k]}")
 
     def __call__(self) -> None:
         self._set_data()
@@ -85,25 +91,40 @@ class Trainer:
 
     @error_wrap
     def _set_data(self) -> None:
+        loader_cfg = LoaderConfig(
+            data_type=config.data_type,
+            batch=config.train_batch,
+            num_workers=config.num_workers,
+            shuffle=True,
+            augmentation_mode=config.augmentation_mode,
+            noise_type=config.noise_type,
+            noise_levels=config.noise_levels,
+            conv_directions=config.conv_directions
+        )
+
         self.train_loader, self.train_dataset_obj = get_data_wrapper_loader(
-            config.train_dataset,
-            config,
+            file_path=config.train_dataset,
+            loader_cfg=loader_cfg,
             training_mode=True,
             data_wrapper_class='controlled'
         )
         logger.info(f"Train dataset length : {len(self.train_loader.dataset)}")
 
+        # Update loader_cfg for validation/test
+        loader_cfg.batch = config.valid_batch
+        loader_cfg.shuffle = False
+
         self.valid_loader, _ = get_data_wrapper_loader(
-            config.valid_dataset,
-            config,
+            file_path=config.valid_dataset,
+            loader_cfg=loader_cfg,
             training_mode=False,
             data_wrapper_class='controlled'
         )
         logger.info(f"Valid dataset length : {len(self.valid_loader.dataset)}")
 
         self.test_loader, _ = get_data_wrapper_loader(
-            config.test_dataset,
-            config,
+            file_path=config.test_dataset,
+            loader_cfg=loader_cfg,
             training_mode=False,
             data_wrapper_class='controlled'
         )

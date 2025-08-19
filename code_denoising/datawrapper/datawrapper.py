@@ -11,6 +11,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 import os
 import sys
+import itertools
 
 # 프로젝트 최상위 경로를 시스템 경로에 추가하여 다른 패키지(dataset)를 찾을 수 있도록 합니다.
 sys.path.append(str(Path(__file__).resolve().parents[2]))
@@ -26,9 +27,9 @@ prob_flip: float = 0.5
 
 
 class DataKey(IntEnum):
-    Label = 0
-    Noisy = 1
-    Name = 2
+    image_gt = 0
+    image_noise = 1
+    name = 2
 
 
 @dataclass
@@ -44,7 +45,7 @@ class LoaderConfig:
     conv_directions: list[tuple[float, float]]
 
 
-class DataWrapper(Dataset):
+class RandomDataWrapper(Dataset):
     file_list: list[str]
     training_mode: bool
     
@@ -75,11 +76,9 @@ class DataWrapper(Dataset):
         self.conv_directions = conv_directions
 
         # 시뮬레이터들을 미리 초기화해둡니다.
-        # noise_sigma는 __getitem__에서 매번 덮어쓰므로, 여기서는 임의의 초기값(0.0)을 사용합니다.
-        self.noise_simulator = NoiseSimulator(noise_type=self.noise_type, noise_sigma=0.0)
+        self.noise_simulator = NoiseSimulator(noise_sigma=0.0) # sigma는 __getitem__에서 매번 덮어씀
         self.forward_simulator = ForwardSimulator()
 
-        # 이제 file_path는 항상 원본 'train' 또는 'val' 폴더입니다.
         total_list: list[str] = []
         for _file_path in file_path:
             p = Path(_file_path)
@@ -90,14 +89,13 @@ class DataWrapper(Dataset):
     @staticmethod
     def _load_from_npy(
         file_npy: str,
-    ) -> np.ndarray: # --- torch.Tensor에서 np.ndarray로 반환 타입 변경 ---
-        # astype(np.float32)를 추가하여 타입 안정성 확보
+    ) -> np.ndarray:
         img = np.load(file_npy).astype(np.float32)
         return img
 
     def _augment(
         self,
-        img_np: np.ndarray, # --- 입력 타입을 np.ndarray로 변경 ---
+        img_np: np.ndarray,
     ) -> np.ndarray:
         if random.random() > prob_flip:
             img_np = np.ascontiguousarray(np.flip(img_np, axis=0))
@@ -109,69 +107,100 @@ class DataWrapper(Dataset):
         self,
         idx: int,
     ):
-        # 1. 원본(label) 이미지를 numpy 배열로 로드합니다.
-        label_np = self._load_from_npy(self.file_list[idx])
+        image_gt_np = self._load_from_npy(self.file_list[idx])
         _name = Path(self.file_list[idx]).name
 
-        # 2. 학습 모드일 때만 데이터 증강(flip)을 적용합니다.
         if self.training_mode:
-            label_np = self._augment(label_np)
+            image_gt_np = self._augment(image_gt_np)
         
-        # 3. 실시간 손상(corruption)을 적용하여 noisy 이미지를 생성합니다.
-        #    validation 모드에서는 augmentation_mode='none'으로 설정하여 원본을 그대로 사용합니다.
-        noisy_np = label_np.copy()
+        image_noise_np = image_gt_np.copy()
         
-        # NumPy 배열을 Tensor로 변환 (시뮬레이터 입력용)
-        noisy_tensor = torch.from_numpy(noisy_np).unsqueeze(0).unsqueeze(0)
-        
-        # --- 핵심 로직: augmentation_mode에 따라 실시간 손상 적용 ---
         if self.augmentation_mode == 'conv_only' or self.augmentation_mode == 'both':
             direction = random.choice(self.conv_directions)
-            noisy_tensor = self.forward_simulator(noisy_tensor, B0_dir=direction)
+            image_noise_np = self.forward_simulator.forward(image_noise_np, B0_dir=direction)
             
         if self.augmentation_mode == 'noise_only' or self.augmentation_mode == 'both':
             sigma = random.choice(self.noise_levels)
-            self.noise_simulator.noise_sigma = sigma # sigma 값을 실시간으로 변경
-            noisy_tensor = self.noise_simulator(noisy_tensor)
+            image_noise_np = self.noise_simulator.add_noise(image_noise_np, sigma, self.noise_type)
         
-        # 최종 결과를 다시 NumPy 배열로 변환
-        noisy_np = noisy_tensor.squeeze().cpu().numpy()
-
-        # 4. 최종적으로 모든 NumPy 배열을 Tensor로 변환하여 반환합니다.
-        return (
-            torch.from_numpy(label_np.copy()).unsqueeze(0),
-            torch.from_numpy(noisy_np.copy()).unsqueeze(0),
-            _name,
-        )
+        return {
+            DataKey.image_gt: torch.from_numpy(image_gt_np.copy()).unsqueeze(0),
+            DataKey.image_noise: torch.from_numpy(image_noise_np.copy()).unsqueeze(0),
+            DataKey.name: _name,
+        }
 
     def __len__(self) -> int:
         return len(self.file_list)
 
+class ControlledDataWrapper(RandomDataWrapper):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.current_epoch = 0
+        self.noise_conv_combinations = list(itertools.product(self.noise_levels, self.conv_directions))
+        self.total_combinations = len(self.noise_conv_combinations)
+
+    def set_epoch(self, epoch: int):
+        self.current_epoch = epoch
+
+    def __getitem__(self, idx: int):
+        image_gt_np = self._load_from_npy(self.file_list[idx])
+        _name = Path(self.file_list[idx]).name
+
+        if self.training_mode:
+            image_gt_np = self._augment(image_gt_np)
+
+        image_noise_np = image_gt_np.copy()
+
+        if self.augmentation_mode == 'noise_only':
+            if len(self.noise_levels) > 0:
+                noise_level = self.noise_levels[(self.current_epoch + idx) % len(self.noise_levels)]
+                image_noise_np = self.noise_simulator.add_noise(image_noise_np, noise_level, self.noise_type)
+        elif self.augmentation_mode == 'conv_only':
+            if len(self.conv_directions) > 0:
+                conv_direction = self.conv_directions[(self.current_epoch + idx) % len(self.conv_directions)]
+                image_noise_np = self.forward_simulator.forward(image_noise_np, conv_direction)
+        elif self.augmentation_mode == 'both':
+            if self.total_combinations > 0:
+                combination_idx = (self.current_epoch + idx) % self.total_combinations
+                noise_level, conv_direction = self.noise_conv_combinations[combination_idx]
+                
+                image_noise_np = self.forward_simulator.forward(image_noise_np, conv_direction)
+                image_noise_np = self.noise_simulator.add_noise(image_noise_np, noise_level, self.noise_type)
+
+        return {
+            DataKey.image_gt: torch.from_numpy(image_gt_np.copy()).unsqueeze(0),
+            DataKey.image_noise: torch.from_numpy(image_noise_np.copy()).unsqueeze(0),
+            DataKey.name: _name,
+        }
+
 
 def get_data_wrapper_loader(
     file_path: list[str],
-    training_mode: bool,
     loader_cfg: LoaderConfig,
+    training_mode: bool,
+    data_wrapper_class: Literal['random', 'controlled'] = 'random',
 ) -> tuple[
     DataLoader,
-    DataWrapper,
-    int,
+    Dataset,
 ]:
-    dataset = DataWrapper(
+    wrapper_map = {
+        'random': RandomDataWrapper,
+        'controlled': ControlledDataWrapper,
+    }
+    DataWrapperClass = wrapper_map[data_wrapper_class]
+    
+    dataset = DataWrapperClass(
         file_path=file_path,
         data_type=loader_cfg.data_type,
         training_mode=training_mode,
-        # --- 재설계: loader_cfg에서 실시간 증강 파라미터 전달 ---
         augmentation_mode=loader_cfg.augmentation_mode if training_mode else 'none',
         noise_type=NoisyType.from_string(loader_cfg.noise_type),
         noise_levels=loader_cfg.noise_levels,
         conv_directions=loader_cfg.conv_directions,
     )
-    len_data = len(dataset)
-    if not len_data:
-        return (None, None, len_data)
-
-    _ = dataset[0]
+    
+    if not len(dataset):
+        return (None, None)
 
     dataloader = DataLoader(
         dataset,
@@ -185,5 +214,4 @@ def get_data_wrapper_loader(
     return (
         dataloader,
         dataset,
-        len(dataset),
     )
