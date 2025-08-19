@@ -23,7 +23,6 @@ from tqdm import tqdm
 from .common.logger import logger
 from .common.metric import calculate_psnr, calculate_ssim
 from .common.utils import (
-    save_result_to_mat,
     separator,
     validate_tensor_dimensions,
     validate_tensors,
@@ -321,39 +320,41 @@ def test_part(
     img_cnt: int = 0
     data_key_img = DataKey.image_noise if not test_mode else DataKey.Label # In test mode, input is clean
     
-    for _data in tqdm(data_loader, leave=False):
-        # In controlled mode, input is always image_noise, ground truth is image_gt
-        # The logic for test_mode needs to be re-evaluated, but for now, we use a consistent input key.
-        input_tensor = _data[DataKey.image_noise].to(config.device)
-        label_tensor = _data[DataKey.image_gt].to(config.device) # Use the correct DataKey name
-        
-        batch_cnt = input_tensor.shape[0]
+    with torch.no_grad():
+        for _data in tqdm(data_loader, leave=False):
+            # In controlled mode, input is always image_noise, ground truth is image_gt
+            # The logic for test_mode needs to be re-evaluated, but for now, we use a consistent input key.
+            input_tensor = _data[DataKey.image_noise].to(config.device)
+            label_tensor = _data[DataKey.image_gt].to(config.device) # Use the correct DataKey name
+            
+            batch_cnt = input_tensor.shape[0]
 
-        validate_tensors([input_tensor, label_tensor])
-        validate_tensor_dimensions([input_tensor, label_tensor], 4)
+            validate_tensors([input_tensor, label_tensor])
+            validate_tensor_dimensions([input_tensor, label_tensor], 4)
 
-        output = model(input_tensor)
+            output = model(input_tensor)
 
-        validate_tensors([output])
-        validate_tensor_dimensions([output], 4)
+            validate_tensors([output])
+            validate_tensor_dimensions([output], 4)
 
-        for idx in range(output.shape[0]):
-            test_state.add("psnr", calculate_psnr(output[idx : idx + 1, ...], label_tensor[idx : idx + 1, ...]))
-            test_state.add("ssim", calculate_ssim(output[idx : idx + 1, ...], label_tensor[idx : idx + 1, ...]))
+            for idx in range(output.shape[0]):
+                test_state.add("psnr", calculate_psnr(output[idx : idx + 1, ...], label_tensor[idx : idx + 1, ...]))
+                test_state.add("ssim", calculate_ssim(output[idx : idx + 1, ...], label_tensor[idx : idx + 1, ...]))
 
-        if save_val:
-            save_result_to_mat(
-                test_dir=run_dir / f"test/ep_{epoch}",
-                batch_cnt=batch_cnt,
-                tesner_dict={
-                    "noisy": input_tensor,
-                    "output": output,
-                    "label": label_tensor,
-                },
-                img_cnt=img_cnt,
-            )
+            # NOTE: .mat file saving is deprecated. Final evaluation uses .npy files.
+            # if save_val:
+            #     save_result_to_mat(
+            #         test_dir=run_dir / f"test/ep_{epoch}",
+            #         batch_cnt=batch_cnt,
+            #         tesner_dict={
+            #             "noisy": input_tensor,
+            #             "output": output,
+            #             "label": label_tensor,
+            #         },
+            #         img_cnt=img_cnt,
+            #     )
 
-        img_cnt += batch_cnt
+            img_cnt += batch_cnt
 
     log_summary(init_time=config.init_time, state=test_state, log_std=True)
 
