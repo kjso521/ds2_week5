@@ -46,30 +46,11 @@ warnings.filterwarnings("ignore")
 
 
 class Trainer:
-    run_dir: Path
-    model: torch.nn.Module
-    optimizer: torch.optim.Optimizer
-    scheduler: ReduceLROnPlateau
-    loss_model: torch.nn.Module
-    train_loader: DataLoader
-    valid_loader: DataLoader
-    test_loader: DataLoader
-    train_dataset_obj: 'DataWrapper'  # For controlled augmentation
-
-    best_metric: float = 0.0
-    best_epoch: int = 0
-    tol_count: int = 0
-    global_step: int = 0
-    primary_metric: float = 0.0
+    """Trainer"""
 
     def __init__(self) -> None:
-        os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-        os.environ["CUDA_VISIBLE_DEVICES"] = config.gpu
-
-        config.init_time = time.time()
-        config.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-        self.run_dir = config.run_dir / f"{call_next_id(config.run_dir):05d}_train"
+        """__init__"""
+        self.run_dir = Path(config.run_dir) / f"{call_next_id(config.run_dir):05d}_train"
         logger_add_handler(logger, f"{self.run_dir / 'log.log'}", config.log_lv)
         logger.info(separator())
         logger.info(f"Run dir: {self.run_dir}")
@@ -91,6 +72,17 @@ class Trainer:
         
         for k in model_config_dict:
             logger.info(f"{k}:{model_config_dict[k]}")
+
+        os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+        config.init_time = time.time()
+        config.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(config.gpu)
+
+        self.best_metric: float = 0.0
+        self.best_epoch: int = 0
+        self.tol_count: int = 0
+        self.global_step: int = 0
+        self.primary_metric: float = 0.0
 
     def __call__(self) -> None:
         self._set_data()
