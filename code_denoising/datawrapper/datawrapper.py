@@ -111,7 +111,7 @@ class RandomDataWrapper(Dataset):
         
         if self.augmentation_mode == 'conv_only' or self.augmentation_mode == 'both':
             direction = random.choice(self.conv_directions)
-            image_noise_np = self.forward_simulator.forward(image_noise_np, B0_dir=direction)
+            image_noise_np = self.forward_simulator(image_noise_np, B0_dir=direction)
             
         if self.augmentation_mode == 'noise_only' or self.augmentation_mode == 'both':
             sigma = random.choice(self.noise_levels)
@@ -152,13 +152,13 @@ class ControlledDataWrapper(RandomDataWrapper):
         elif self.augmentation_mode == 'conv_only':
             if len(self.conv_directions) > 0:
                 conv_direction = self.conv_directions[(self.current_epoch + idx) % len(self.conv_directions)]
-                image_noise_np = self.forward_simulator.forward(image_noise_np, conv_direction)
+                image_noise_np = self.forward_simulator(image_noise_np, conv_direction)
         elif self.augmentation_mode == 'both':
             if self.total_combinations > 0:
                 combination_idx = (self.current_epoch + idx) % self.total_combinations
                 noise_level, conv_direction = self.noise_conv_combinations[combination_idx]
                 
-                image_noise_np = self.forward_simulator.forward(image_noise_np, conv_direction)
+                image_noise_np = self.forward_simulator(image_noise_np, conv_direction)
                 image_noise_np = self.noise_simulator.add_noise(image_noise_np, noise_level, self.noise_type)
 
         return {
