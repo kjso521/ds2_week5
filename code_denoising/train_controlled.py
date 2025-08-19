@@ -27,11 +27,10 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from common.logger import logger, logger_add_handler
-from common.utils import separator, call_next_id
-from common.wrapper import error_wrap
-from core_funcs import get_model, get_optimizer, get_loss_model, save_checkpoint, test_part
-from datawrapper.datawrapper import DataKey, get_data_wrapper_loader, LoaderConfig
+from code_denoising.datawrapper.datawrapper import DataKey, get_data_wrapper_loader, LoaderConfig
+from code_denoising.core_funcs import get_model, get_optimizer, get_loss_model, save_checkpoint, test_part
+from code_denoising.common.utils import call_next_id, logger_add_handler, separator, error_wrap
+from code_denoising.common.logger import logger
 from params import config, dncnnconfig, unetconfig, parse_args_for_train_script
 
 warnings.filterwarnings("ignore")
