@@ -174,7 +174,7 @@ class Trainer:
                 self.optimizer.step()
 
             if epoch % config.valid_interval == 0:
-                is_best = self._valid(epoch)
+                is_best = self._valid()
                 if is_best:
                     self.best_metric = self.primary_metric
                     self.best_epoch = epoch
@@ -190,58 +190,41 @@ class Trainer:
                 break
 
     @error_wrap
-    def _valid(self, epoch: int) -> bool:
+    def _valid(self) -> bool:
+        """Validation"""
         logger.info("Valid")
-        self.model.eval()
-        total_psnr = 0.0
-        with torch.no_grad():
-            for data in tqdm(self.valid_loader, leave=False):
-                image_noise = data[DataKey.image_noise].to(config.device)
-                image_gt = data[DataKey.image_gt].to(config.device)
+        primary_metric = test_part(self.valid_loader, self.model, self.run_dir, config.save_val, self.epoch)
 
-                image_pred = self.model(image_noise)
+        self.primary_metric = primary_metric
+        self.scheduler.step(primary_metric)
 
-                # For validation, we typically use a metric like PSNR
-                mse = torch.mean((image_pred - image_gt) ** 2)
-                psnr = 10 * torch.log10(1.0 / mse)
-                total_psnr += psnr.item()
-
-        avg_psnr = total_psnr / len(self.valid_loader)
-        logger.info(f"Validation PSNR: {avg_psnr:.4f}")
-        self.primary_metric = avg_psnr
-
-        if avg_psnr > self.best_metric:
+        if primary_metric > self.best_metric:
             logger.success("Best model renewed")
-            save_checkpoint(self.model, self.run_dir) # is_best=True 대신 파일이름을 지정하지 않는 방식으로 호출
+            self.best_metric = primary_metric
+            save_checkpoint(self.model, self.run_dir) # Saves as checkpoint_best.ckpt
             return True
         return False
 
     @error_wrap
-    def _test(self, epoch: int, tag: str) -> None:
-        logger.info(f"Test with {tag} model from epoch {epoch}")
-        
+    def _test(self, tag: str) -> None:
+        """Test"""
+        logger.info(f"Test with {tag} model from epoch {self.epoch}")
+
         if tag == "best":
-            checkpoint_path = self.run_dir / "best.ckpt"
+            checkpoint_path = self.run_dir / "checkpoints" / "checkpoint_best.ckpt" # Correct path
             if not checkpoint_path.exists():
-                logger.warning(f"best.ckpt not found in {self.run_dir}. Skipping test.")
+                logger.warning(f"best checkpoint not found in {checkpoint_path}. Skipping test.")
                 return
+            
             checkpoint = torch.load(checkpoint_path)
-            # 'network_state_dict'가 없을 경우를 대비하여 'model_state_dict'도 확인
-            state_dict = checkpoint.get('network_state_dict') or checkpoint.get('model_state_dict')
+            state_dict = checkpoint.get('model_state_dict')
             if state_dict:
-                # DataParallel 래핑 핸들링
-                if isinstance(self.model, DataParallel):
-                    self.model.module.load_state_dict(state_dict)
-                else:
-                    self.model.load_state_dict(state_dict)
+                model_to_load = self.model.module if isinstance(self.model, torch.nn.DataParallel) else self.model
+                model_to_load.load_state_dict(state_dict)
             else:
                 logger.error("Could not find a valid state_dict in the checkpoint.")
 
-
-        self.model.eval()
-        # Test logic can be added here if needed, e.g., saving outputs
-        # For now, we mainly rely on validation performance
-        pass
+        test_part(self.test_loader, self.model, self.run_dir, True, self.epoch, test_mode=True)
 
 
 def main() -> None:
