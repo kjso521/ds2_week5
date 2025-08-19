@@ -28,8 +28,10 @@ from .common.utils import (
     validate_tensors,
 )
 from .datawrapper.datawrapper import DataKey
-from model.dncnn import DnCNN
-from model.unet import Unet
+
+
+from .model.dncnn import DnCNN
+from .model.unet import Unet
 from params import DnCNNConfig, UnetConfig, config, dncnnconfig, unetconfig
 
 NETWORK = DnCNN | Unet | torch.nn.DataParallel[DnCNN] | torch.nn.DataParallel[Unet]
