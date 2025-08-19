@@ -137,9 +137,10 @@ class Trainer:
 
     @error_wrap
     def _train(self) -> None:
-        logger.info(separator())
+        """train entry point"""
+        logger.info("####################################################################################################")
         logger.info("Train start")
-
+        
         for epoch in range(config.train_epoch):
             self.epoch = epoch
             logger.info(f"Epoch: {epoch}")
@@ -167,6 +168,9 @@ class Trainer:
                 # Loss backward
                 total_loss.backward()
                 self.optimizer.step()
+
+            # --- Save checkpoint for every epoch ---
+            save_checkpoint(self.model, self.run_dir, epoch=self.epoch)
 
             if epoch % config.valid_interval == 0:
                 is_best = self._valid()
