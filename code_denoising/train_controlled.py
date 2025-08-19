@@ -170,7 +170,7 @@ class Trainer:
                 self.optimizer.step()
 
             # --- Save checkpoint for every epoch ---
-            save_checkpoint(self.model, self.run_dir, epoch=self.epoch)
+            save_checkpoint(self.model, self.run_dir, epoch=self.epoch, model_type=config.model_type)
 
             if epoch % config.valid_interval == 0:
                 is_best = self._valid()
@@ -205,7 +205,7 @@ class Trainer:
         if primary_metric > self.best_metric:
             logger.success("Best model renewed")
             self.best_metric = primary_metric
-            save_checkpoint(self.model, self.run_dir) # Saves as checkpoint_best.ckpt
+            save_checkpoint(self.model, self.run_dir, model_type=config.model_type) # Saves as checkpoint_best.ckpt
             return True
         return False
 

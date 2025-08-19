@@ -7,140 +7,115 @@
 
 import argparse
 import os
-import time
-import warnings
-from dataclasses import asdict
 from pathlib import Path
+import sys
+import warnings
 
-import numpy as np
+# --- 중요: 모든 import 이전에 프로젝트 루트 경로를 시스템 경로에 추가 ---
+# 이 스크립트가 실행되는 위치를 기준으로, 상위 1단계 폴더(week5)를 경로에 추가합니다.
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+
 import torch
-from torch import Tensor
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+import numpy as np
 
+# 프로젝트 루트를 기준으로 필요한 모듈 import
+from code_denoising.datawrapper.datawrapper import DataKey, get_data_wrapper_loader, LoaderConfig
+from code_denoising.core_funcs import get_model
+from params import config
 from code_denoising.common.logger import logger
-from code_denoising.common.metric import calculate_psnr, calculate_ssim
-from code_denoising.common.utils import (
-    separator,
-    validate_tensor_dimensions,
-    validate_tensors,
-)
-from code_denoising.components.metriccontroller import MetricController
-from code_denoising.datawrapper.datawrapper import DataKey, LoaderConfig, get_data_wrapper_loader
-from code_denoising.model.dncnn import DnCNN
-from code_denoising.params import DnCNNConfig
 
 warnings.filterwarnings("ignore")
 
 def create_results(
+    network: torch.nn.Module,
     data_loader: DataLoader,
-    network: DnCNN,
-    result_dir: Path,
-    device: torch.device,
+    result_dir: str,
 ):
-    """모델을 사용해 데이터셋을 복원하고 결과를 저장"""
-    network.eval()
-    test_state = MetricController()
+    """
+    Generate and save model outputs.
+    """
+    result_path = Path(result_dir)
+    result_path.mkdir(parents=True, exist_ok=True)
+    
+    logger.info(f"Saving results to {result_path}")
 
-    logger.info("Starting result generation...")
-    for _data in tqdm(data_loader, desc="Processing"):
-        noisy: Tensor = _data[DataKey.Noisy].to(device)
-        label: Tensor = _data[DataKey.Label].to(device)
-        names: list[str] = _data[DataKey.Name]
+    total_psnr = 0.0
+    total_ssim = 0.0
+    count = 0
 
-        validate_tensors([noisy, label])
-        validate_tensor_dimensions([noisy, label], 4)
+    with torch.no_grad():
+        for data in tqdm(data_loader, leave=False):
+            image_noise = data[DataKey.image_noise].to(config.device)
+            filenames = data[DataKey.name]
 
-        with torch.no_grad():
-            output = network(noisy)
+            image_pred = network(image_noise)
 
-        validate_tensors([output])
-        validate_tensor_dimensions([output], 4)
-
-        for idx in range(output.shape[0]):
-            psnr = calculate_psnr(output[idx : idx + 1, ...], label[idx : idx + 1, ...])
-            ssim = calculate_ssim(output[idx : idx + 1, ...], label[idx : idx + 1, ...])
-            test_state.add("psnr", psnr)
-            test_state.add("ssim", ssim)
-
-            output_np = output[idx, 0, ...].cpu().numpy()
-            file_name = names[idx]
-            np.save(result_dir / file_name, output_np)
-
-    logger.info(separator())
-    logger.info("Result generation finished.")
-    logger.info(f"Average PSNR: {test_state.mean('psnr'):.4f} (+/- {test_state.std('psnr'):.4f})")
-    logger.info(f"Average SSIM: {test_state.mean('ssim'):.4f} (+/- {test_state.std('ssim'):.4f})")
+            for i in range(image_pred.shape[0]):
+                pred_np = image_pred[i, 0, :, :].cpu().numpy()
+                filename = filenames[i]
+                
+                # Ensure the saved file has the original extension stripped
+                base_filename = Path(filename).stem
+                
+                np.save(result_path / f"{base_filename}.npy", pred_np)
+    
+    logger.info("Finished creating result files.")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Create result files for final evaluation.")
-    parser.add_argument("--trained_checkpoints", type=str, required=True, help="Path to the trained model checkpoint (.ckpt).")
-    parser.add_argument("--result_dir", type=str, default="result", help="Directory to save the resulting .npy files.")
-    parser.add_argument("--data_root", type=str, default="dataset", help="Root directory of the dataset.")
-    parser.add_argument("--batch", type=int, default=8, help="Batch size for processing.")
-    parser.add_argument("--num_workers", type=int, default=4, help="Number of workers for data loading.")
-    parser.add_argument("--gpu", type=str, default="0", help="GPU ID to use.")
+    parser = argparse.ArgumentParser(description="Create evaluation results from a checkpoint.")
+    parser.add_argument("--checkpoint_path", type=str, required=True, help="Path to the model checkpoint file.")
+    parser.add_argument("--data_root", type=str, default="dataset/test_y", help="Path to the test data directory.")
+    parser.add_argument("--result_dir", type=str, default="result", help="Directory to save the result .npy files.")
     args = parser.parse_args()
 
-    # --- 환경 설정 ---
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
-    if os.name == 'nt' and args.num_workers > 0:
-        logger.warning(f"Running on Windows. Forcing num_workers to 0 (was {args.num_workers}).")
-        args.num_workers = 0
+    # --- 체크포인트 로드 ---
+    if not os.path.exists(args.checkpoint_path):
+        raise FileNotFoundError(f"Checkpoint file not found at {args.checkpoint_path}")
 
-    result_path = Path(args.result_dir)
-    result_path.mkdir(parents=True, exist_ok=True)
+    logger.info(f"Loading checkpoint from: {args.checkpoint_path}")
+    checkpoint = torch.load(args.checkpoint_path, map_location=config.device)
     
-    logger.info(f"Using device: {device}")
-    logger.info(f"Results will be saved in: {result_path.resolve()}")
+    # 체크포인트에 저장된 model_type을 사용하여 모델 로드
+    config.model_type = checkpoint.get("model_type", "dncnn") # 이전 버전 호환성을 위해 dncnn을 기본값으로
+    logger.info(f"Loading model type: {config.model_type}")
 
-    # --- 모델 불러오기 ---
-    logger.info(f"Loading checkpoint from: {args.trained_checkpoints}")
-    checkpoint_data = torch.load(args.trained_checkpoints, map_location="cpu")
-    model_config = DnCNNConfig(**checkpoint_data["model_config"])
-    network = DnCNN(
-        channels=model_config.channels,
-        num_of_layers=model_config.num_of_layers,
-        kernel_size=model_config.kernel_size,
-        padding=model_config.padding,
-        features=model_config.features,
-    )
+    network = get_model(config).to(config.device)
     
-    load_state_dict = checkpoint_data["model_state_dict"]
-    _state_dict = {k.replace("module.", ""): v for k, v in load_state_dict.items()}
-    network.load_state_dict(_state_dict, strict=True)
-    network = network.to(device)
+    state_dict = checkpoint['model_state_dict']
     
-    if torch.cuda.device_count() > 1:
-        logger.info(f"Found {torch.cuda.device_count()} GPUs. Using DataParallel.")
-        network = torch.nn.DataParallel(network)
+    # DataParallel 래핑 핸들링
+    if isinstance(network, torch.nn.DataParallel):
+        network.module.load_state_dict(state_dict)
+    else:
+        network.load_state_dict(state_dict)
+    network.eval()
 
     # --- 데이터 로더 설정 ---
-    test_dataset_path = [str(Path(args.data_root) / "test_y")]
     loader_cfg = LoaderConfig(
-        data_type="*.npy",
-        batch=args.batch,
-        num_workers=args.num_workers,
+        data_type=config.data_type,
+        batch=8,
+        num_workers=0,
         shuffle=False,
         augmentation_mode='none',
-        noise_type="gaussian",
-        noise_levels=[],
-        conv_directions=[],
+        noise_type=config.noise_type,
+        noise_levels=config.noise_levels,
+        conv_directions=config.conv_directions
     )
-    data_loader, _, data_len = get_data_wrapper_loader(
-        file_path=test_dataset_path,
-        training_mode=False,
+    data_loader, _ = get_data_wrapper_loader(
+        file_path=[args.data_root],
         loader_cfg=loader_cfg,
+        training_mode=False,
     )
-    if not data_len:
-        raise ValueError("Test dataset is empty.")
 
-    # --- 결과 생성 실행 ---
-    create_results(data_loader, network, result_path, device)
-
+    if not data_loader:
+        logger.error(f"Failed to create data loader from {args.data_root}. No data found?")
+        return
+        
+    # --- 결과 생성 ---
+    create_results(network, data_loader, args.result_dir)
 
 if __name__ == "__main__":
     main()

@@ -138,20 +138,33 @@ def log_summary(
 
 
 def save_checkpoint(
-    network: NETWORK,
-    run_dir: Path,
-    epoch: str | int | None = None,
+    network: NETWORK, run_dir: Path, epoch: int | None = None, model_type: str | None = None
 ) -> None:
-    if epoch is None:
-        epoch = "best"
-    os.makedirs(run_dir / "checkpoints", exist_ok=True)
-    torch.save(
-        {
-            "model_state_dict": network.state_dict(),
-            "model_config": asdict(dncnnconfig),
-        },
-        run_dir / f"checkpoints/checkpoint_{epoch}.ckpt",
-    )
+    """
+    Saves a checkpoint of the model.
+    """
+    checkpoints_dir = run_dir / "checkpoints"
+    checkpoints_dir.mkdir(exist_ok=True)
+
+    if isinstance(network, torch.nn.DataParallel):
+        state_dict = network.module.state_dict()
+    else:
+        state_dict = network.state_dict()
+
+    checkpoint_data = {
+        "model_state_dict": state_dict,
+        "epoch": epoch,
+        "model_type": model_type,
+    }
+
+    if epoch is not None:
+        checkpoint_path = checkpoints_dir / f"checkpoint_epoch_{epoch}.ckpt"
+        torch.save(checkpoint_data, checkpoint_path)
+    else:
+        # Save as best checkpoint
+        checkpoint_path = checkpoints_dir / "checkpoint_best.ckpt"
+        torch.save(checkpoint_data, checkpoint_path)
+        logger.info(f"Best model checkpoint saved to {checkpoint_path}")
 
 
 def zero_optimizers(

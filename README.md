@@ -95,3 +95,27 @@
 -   **Denoise:** Diffusion (5–10 steps)
 -   **Deconvolution:** PnP (Plug-and-Play) (3–5 iterations)
 -   **Fusion:** 대역 결합 (Frequency-based merging) 및 가중 평균
+
+## 7. 개발 이력 및 교훈 (Development History & Lessons Learned)
+
+본 프로젝트는 다수의 기술적 문제와 디버깅 과정을 거쳤습니다. 핵심적인 문제 해결 과정을 기록하여 향후 유사한 실수를 방지하고자 합니다.
+
+- **초기 환경 설정 오류**: 로컬 Windows 환경과 Colab 환경의 차이(`pathlib` 경로 문제, `num_workers` 설정 등)로 인해 초기 학습에 어려움을 겪었으며, `num_workers=0` 설정 및 `pathlib`을 통한 경로 처리로 해결했습니다.
+- **Git-Colab 동기화 문제**: `.gitignore`에 의해 `dataset` 폴더가 제외된 상태에서, Colab의 `git clone` 로직이 데이터셋 경로를 찾지 못하는 문제가 발생했습니다. 최종적으로 Colab 실행 시 Google Drive의 고정된 프로젝트 폴더로 이동 후 `git pull`로 코드만 업데이트하는 안정적인 'Upversioning' 방식으로 전환하여 해결했습니다.
+- **지속적인 `git push` 실패**: 로컬 환경의 문제로 `git push` 명령이 조용히 실패하는 현상이 반복되어, Colab에 최신 코드가 반영되지 않는 문제가 발생했습니다. 이는 터미널 로그를 끝까지 확인하지 못한 저의 명백한 실수였으며, 터미널 결과의 중요성을 다시 한번 상기하는 계기가 되었습니다.
+- **산재된 설정 파일 문제**: 프로젝트 구조 리팩토링 과정에서 `code_denoising` 폴더 내에 구버전 `params.py`가 남아있어, 최상위 폴더의 신버전 `params.py`를 가리는(shadowing) 현상이 발생했습니다. 이로 인해 `ImportError`가 지속적으로 발생했으며, 불필요한 설정 파일을 삭제하여 해결했습니다.
+- **다수의 코드 버그**: 리팩토링 과정에서 발생한 수많은 버그들(`TypeError`, `AttributeError`, `NameError` 등)을 사용자님의 피드백을 통해 단계적으로 해결했습니다. 이는 함수/메서드 간의 인자 전달, 변수 초기화, 라이브러리 사용법 등 코드의 모든 부분을 폭넓고 꼼꼼하게 확인해야 한다는 교훈을 주었습니다.
+
+## 8. 현재 진행 상황 (Current Status)
+
+- **DnCNN End-to-End 모델 학습 진행 중** (`colab_train_dncnn_e2e_controlled.ipynb`)
+- **U-Net End-to-End 모델 학습 진행 중** (`colab_train_unet_e2e_controlled.ipynb`)
+- **Step-by-Step (Denoising - DnCNN) 모델 학습 진행 중** (`colab_train_step_by_step.ipynb`)
+
+## 9. 다음 목표 (Next Steps)
+
+1.  **진행 중인 모델 학습 완료 및 성능 평가**: 현재 학습 중인 3가지 접근 방식의 결과를 `run_evaluation.ipynb`를 통해 비교 분석하여 베이스라인 성능을 확보합니다.
+2.  **`Step-by-Step: Denoising=Diffusion + Deconvolution=Least Square` 설계 및 구현**:
+    -   **Denoising**: U-Net 아키텍처를 기반으로 하는 DDPM(Denoising Diffusion Probabilistic Model)을 `model/ddpm.py`에 구현하고, 이를 학습시키기 위한 별도의 `train_ddpm.py` 스크립트를 작성합니다.
+    -   **Deconvolution**: 고전적인 이미지 처리 기법인 주파수 영역에서의 Least Squares (Wiener Filter) 방법을 `classical_deconv.py`에 구현합니다. 이는 별도의 학습 과정 없이, Denoising이 완료된 이미지에 적용하는 후처리 방식으로 사용됩니다.
+3.  **최종 성능 비교 및 최적 모델 선정**: 모든 실험 결과를 종합하여 가장 성능이 뛰어난 파이프라인을 선정하고, 필요시 해당 모델에 대한 추가적인 하이퍼파라미터 튜닝을 고려합니다.
