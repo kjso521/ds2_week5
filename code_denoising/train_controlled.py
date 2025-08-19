@@ -50,7 +50,7 @@ class Trainer:
 
     def __init__(self) -> None:
         """__init__"""
-        self.run_dir = Path(config.run_dir) / f"{call_next_id(config.run_dir):05d}_train"
+        self.run_dir = Path(config.run_dir) / f"{call_next_id(Path(config.run_dir)):05d}_{config.tag or 'train'}"
         logger_add_handler(logger, f"{self.run_dir / 'log.log'}", config.log_lv)
         logger.info(separator())
         logger.info(f"Run dir: {self.run_dir}")
