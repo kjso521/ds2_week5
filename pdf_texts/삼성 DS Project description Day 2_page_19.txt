@@ -1,0 +1,4 @@
+Single input Deep neural network
+(Your choice) Ground truth
+• Neural network 
+Potential solutions

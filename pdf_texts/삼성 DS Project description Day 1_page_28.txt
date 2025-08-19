@@ -1,0 +1,7 @@
+28
+Test
+• Test dataset:
+- Corrupted images only: 100 images (one per sample)
+- No clean labels provided
+- Test code is provided with encrypted evaluator
+- Run test code with your test data on the Colab

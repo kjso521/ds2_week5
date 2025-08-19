@@ -1,0 +1,13 @@
+How do you implement? How do you make skinny matrix?
+Y = AX
+Y: Input in Fourier domain ← we measured it
+A: Kernel in Fourier domain ← we know shape but has lots of zeros
+X: Output in Fourier domain ← what we want to know
+n2 x 1 vector
+n2 x 1 vector for n×nsize image
+n2 x n2 matrix
+Fy = AFχ y: Input
+y = F−1AFχ
+minχ ԡy ԡ−F−1AFχ +  regularization term
+n2 x 1 vector
+Perform 2D FT, kernel multiplication, 2D FT-1 then columnize matrix 

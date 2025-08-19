@@ -1,0 +1,15 @@
+11
+Suscep map
+Local field map
+Deconvolution
+=
+Convolution
+⊗
+Dipole Local field distr
+-1
+=⊗
+Dipole
+Dipole
+Suscep distr
+• Fourier transform suggests deconvolution requires division by zeros
+Our convolution model (PSF/IRF/Kernel)

@@ -1,0 +1,10 @@
+• Metric (on test dataset)
+- On test dataset
+- PSNR, SSIM
+• Presentation
+- Explain your overall pipeline clearly
+- Show example restoration results (before/after).
+- Justify why you chose your specific method.
+• Label-free pipelines will receive partial bonus consideration.
+30
+Evaluation

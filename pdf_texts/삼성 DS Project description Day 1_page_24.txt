@@ -1,0 +1,8 @@
+• In practical scenarios, clean ground-truth images are rarely available
+→A purely supervised approach is unrealistic in many applications
+• Possible approaches to consider:
+- Denoising: self-supervised learning, filtering, …
+- Deconvolution: leveraging multi-orientation information, regularization, thresholding, …
+- General approach: generating pseudo labels, and any other creative ways
+24
+Challenge & approaches

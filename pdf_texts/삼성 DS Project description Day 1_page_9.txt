@@ -1,0 +1,7 @@
+Basic model for degradation
+Degradation 
+PSF: h(x,y)
+(e.g blur)
+Restoration
+filter: r(x,y)
+9

@@ -1,0 +1,6 @@
+27
+Training data
+• Train / validation dataset:
+- X is provided
+- Convolution & add noise can be 
+performed via simulator

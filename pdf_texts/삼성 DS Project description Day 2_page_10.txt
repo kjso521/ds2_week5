@@ -1,0 +1,15 @@
+10
+Suscep map
+Local field map
+Deconvolution
+=
+Convolution
+⊗
+Kernel Local field distr
+-1
+=⊗
+Kernel
+Suscep distr
+• Seminconductor image is generated from input image by deconvolution
+χ∗d = measurement
+Our convolution model (PSF/IRF/Kernel)

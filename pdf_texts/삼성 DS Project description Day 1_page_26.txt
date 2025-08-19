@@ -1,0 +1,11 @@
+• Train / validation dataset:
+- Clean images: 7,368
+- Forward corruption model:
+• 2D dipole convolution (model is given)
+• Noise model (noise characteristic is not given)
+- For each clean image, you may synthesize corrupted variants, using the provided model
+• Test dataset:
+- Corrupted images only: 100 images (one per sample)
+- No clean labels provided
+26
+Dataset

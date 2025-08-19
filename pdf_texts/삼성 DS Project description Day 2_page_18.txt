@@ -1,0 +1,5 @@
+• Multiple orientation data
+- Remove zeros using three or more orientation data
+• Single orientation data
+- k-space threshold (TKD), regularization using L2 norm etc…
+Potential solutions

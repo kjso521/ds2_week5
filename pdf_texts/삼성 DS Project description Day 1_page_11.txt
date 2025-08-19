@@ -1,0 +1,5 @@
+Noisy images
+Noise distribution Gaussian 
+(Thermal noise) Rayleigh Exponential 
+(laser imaging) Salt & pepperUniform
+11

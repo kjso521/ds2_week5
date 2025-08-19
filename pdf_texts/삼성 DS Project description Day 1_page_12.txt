@@ -1,0 +1,5 @@
+Determine noise type and power?
+• Typical ways
+- Find a region that should be flat (constant intensity)
+- Look at image histogram
+12

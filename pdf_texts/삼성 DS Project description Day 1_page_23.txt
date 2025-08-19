@@ -1,0 +1,13 @@
+• Potential restoration strategies:
+- Classical Wiener filter
+- End-to-end neural network: train a single network to restore clean
+- Two-stage neural network: train a denoising network and a deconvolution network separately
+23
+Project overview
+Restored clean imageCorrupted image
+Denoising + 
+deconvolution
+Restored clean imageDenoised image
+Deconvolution
+Corrupted image
+Denoising

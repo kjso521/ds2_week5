@@ -1,0 +1,16 @@
+# Large data files
+dataset/
+
+# Log files and experiment results
+logs_*/
+Noise_Analysis/
+SAMPLES/
+relationship_verification_results/
+*.mat
+
+# Python cache files
+__pycache__/
+*.pyc
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/

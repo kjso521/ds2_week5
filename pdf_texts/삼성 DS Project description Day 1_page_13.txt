@@ -1,0 +1,6 @@
+Denoising
+• Low pass filter (image domain, Fourier domain)
+• Median filter for salt and pepper noise
+• Adaptive filter
+• Deep learning based denoising
+13

@@ -1,0 +1,14 @@
+• Use the forward model to synthesize training pairs
+• Construct a pipeline to restore corrupted images into clean images 
+• You are free to explore any architectures or algorithms
+- Classical image processing
+- End-to-end approach (corrupted → clean)
+- Two-stage approach (denoising + deconvolution)
+- Self-supervised or label-free strategies (recommended for realism)
+- Etc.
+• Requirements:
+- For each clean image, you may generate up to 6 dipole kernel orientations.
+- For each orientation, you may generate up to 2 noisy images.
+- Do not exceed 12 corrupted images per clean image (6 orientations ×2 noises)
+29
+Task

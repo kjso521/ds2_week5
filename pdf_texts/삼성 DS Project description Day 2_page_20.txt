@@ -1,0 +1,12 @@
+How do you implement?
+Y = AX
+Y: Input in Fourier domain ← we measured it
+A: Kernel in Fourier domain ← we know shape but has lots of zeros
+X: Output in Fourier domain ← what we want to know
+X = A−1Y Nope! Ais not full rank 
+min
+X
+ԡY ԡ−AX +  regularization term  
+n2 x 1 vector
+n2 x 1 vector for n×nsize image
+n2 x n2 matrix
