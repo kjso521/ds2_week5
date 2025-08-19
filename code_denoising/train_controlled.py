@@ -7,10 +7,16 @@
 """
 
 import os
+import sys
+from pathlib import Path
+
+# --- 중요: 모든 import 이전에 프로젝트 루트 경로를 시스템 경로에 추가 ---
+# 이 스크립트가 실행되는 위치를 기준으로, 상위 2단계 폴더(week5)를 경로에 추가합니다.
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+
 import time
 import warnings
 from dataclasses import asdict
-from pathlib import Path
 
 import torch
 from torch.nn import DataParallel

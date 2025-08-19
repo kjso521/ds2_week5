@@ -8,10 +8,6 @@ import re
 import os
 import sys
 
-# 프로젝트 최상위 경로를 시스템 경로에 추가하는 코드를 최상단으로 이동합니다.
-# 이 코드는 다른 어떤 모듈보다 먼저 실행되어야 합니다.
-sys.path.append(str(Path(__file__).resolve().parents[2]))
-
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
