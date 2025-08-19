@@ -5,20 +5,18 @@ from enum import IntEnum
 from typing import Literal
 from pathlib import Path
 import re
+import os
+import sys
+
+# 프로젝트 최상위 경로를 시스템 경로에 추가하는 코드를 최상단으로 이동합니다.
+# 이 코드는 다른 어떤 모듈보다 먼저 실행되어야 합니다.
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
-import os
-import sys
 import itertools
 
-# 프로젝트 최상위 경로를 시스템 경로에 추가하여 다른 패키지(dataset)를 찾을 수 있도록 합니다.
-sys.path.append(str(Path(__file__).resolve().parents[2]))
-
-# 실시간 증강을 위해 시뮬레이터들을 임포트합니다.
-# `.noise_simulator`: 현재 패키지(datawrapper) 내의 모듈 (상대 경로)
-# `dataset.forward_simulator`: 다른 패키지(dataset) 내의 모듈 (절대 경로)
 from .noise_simulator import NoiseSimulator, NoisyType
 from dataset.forward_simulator import ForwardSimulator
 
