@@ -40,7 +40,7 @@ from core_funcs import (
     save_checkpoint,
 )
 from datawrapper.datawrapper import DataKey, get_data_wrapper_loader, LoaderConfig
-from params import config, dncnnconfig, unetconfig
+from params import config, dncnnconfig, unetconfig, parse_args_for_train_script
 
 warnings.filterwarnings("ignore")
 
@@ -252,12 +252,12 @@ class Trainer:
         pass
 
 
+def main() -> None:
+    """execution entry point"""
+    parse_args_for_train_script() # Call the parsing function at the very beginning
+    trainer = Trainer()
+    trainer()
+
+
 if __name__ == "__main__":
-    print("[DEBUG] train_controlled.py script started.")
-    try:
-        trainer = Trainer()
-        trainer()
-    except Exception as e:
-        logger.error(f"An error occurred: {e}")
-    finally:
-        print("[DEBUG] train_controlled.py script finished.")
+    main()
