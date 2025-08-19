@@ -28,10 +28,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from common.logger import logger, logger_add_handler
-from common.utils import (
-    call_next_id,
-    separator,
-)
+from common.utils import separator, call_next_id
 from common.wrapper import error_wrap
 from core_funcs import get_model, get_optimizer, get_loss_model, save_checkpoint, test_part
 from datawrapper.datawrapper import DataKey, get_data_wrapper_loader, LoaderConfig
@@ -46,45 +43,46 @@ class Trainer:
     def __init__(self) -> None:
         """__init__"""
         self.run_dir = Path(config.run_dir) / f"{call_next_id(Path(config.run_dir)):05d}_{config.tag or 'train'}"
+        self.run_dir.mkdir(parents=True, exist_ok=True)
+        
         logger_add_handler(logger, f"{self.run_dir / 'log.log'}", config.log_lv)
         logger.info(separator())
         logger.info(f"Run dir: {self.run_dir}")
-        os.makedirs(self.run_dir, exist_ok=True)
+        logger.info(separator())
 
-        logger.info(separator())
+        # Log configurations
         logger.info("General Config")
-        config_dict = asdict(config)
-        for k in config_dict:
-            logger.info(f"{k}:{config_dict[k]}")
+        for k, v in asdict(config).items():
+            logger.info(f"{k}:{v}")
         logger.info(separator())
-        logger.info("Model Config")
-        if config.model_type == "dncnn":
-            model_config_dict = asdict(dncnnconfig)
-        elif config.model_type == "unet":
-            model_config_dict = asdict(unetconfig)
-        else:
-            model_config_dict = {}
         
-        for k in model_config_dict:
-            logger.info(f"{k}:{model_config_dict[k]}")
+        # This part depends on the model_type, so we log it after parsing args
+        if config.model_type == "dncnn":
+            logger.info("Model Config (DnCNN)")
+            for k, v in asdict(dncnnconfig).items():
+                logger.info(f"{k}:{v}")
+        elif config.model_type == "unet":
+            logger.info("Model Config (U-Net)")
+            for k, v in asdict(unetconfig).items():
+                logger.info(f"{k}:{v}")
 
         os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
         config.init_time = time.time()
         config.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         os.environ["CUDA_VISIBLE_DEVICES"] = str(config.gpu)
 
+        self.device = config.device
         self.best_metric: float = 0.0
-        self.train_epoch: int = config.train_epoch
         self.epoch: int = 0
         self.primary_metric: float = 0.0
         self.tol_count: int = 0
         self.global_step: int = 0
 
-    def __call__(self) -> None:
+    def run(self) -> None:
         self._set_data()
         self._set_network()
         self._train()
-        self._test(self.best_epoch, "best") # Test with the best model
+        self._test("best") # Call test after training is finished
 
     @error_wrap
     def _set_data(self) -> None:
@@ -143,6 +141,7 @@ class Trainer:
         logger.info("Train start")
 
         for epoch in range(config.train_epoch):
+            self.epoch = epoch
             logger.info(f"Epoch: {epoch}")
             logger.info(f"Learning rate: {self.optimizer.param_groups[0]['lr']:.3e}")
             self.global_step = 0
@@ -173,7 +172,6 @@ class Trainer:
                 is_best = self._valid()
                 if is_best:
                     self.best_metric = self.primary_metric
-                    self.best_epoch = epoch
                     self.tol_count = 0
                 else:
                     self.tol_count += 1
@@ -189,7 +187,13 @@ class Trainer:
     def _valid(self) -> bool:
         """Validation"""
         logger.info("Valid")
-        primary_metric = test_part(self.valid_loader, self.model, self.run_dir, config.save_val, self.epoch)
+        primary_metric = test_part(
+            data_loader=self.valid_loader, 
+            network=self.model, 
+            run_dir=self.run_dir, 
+            save_val=config.save_val, 
+            epoch=self.epoch
+        )
 
         self.primary_metric = primary_metric
         self.scheduler.step(primary_metric)
@@ -204,7 +208,7 @@ class Trainer:
     @error_wrap
     def _test(self, tag: str) -> None:
         """Test"""
-        logger.info(f"Test with {tag} model from epoch {self.epoch}")
+        logger.info(f"Test with {tag} model from epoch {self.best_metric:.4f}") # Log best metric
 
         if tag == "best":
             checkpoint_path = self.run_dir / "checkpoints" / "checkpoint_best.ckpt" # Correct path
@@ -220,14 +224,21 @@ class Trainer:
             else:
                 logger.error("Could not find a valid state_dict in the checkpoint.")
 
-        test_part(self.test_loader, self.model, self.run_dir, True, self.epoch, test_mode=True)
+        test_part(
+            data_loader=self.test_loader, 
+            network=self.model, 
+            run_dir=self.run_dir, 
+            save_val=True, 
+            epoch=self.epoch, 
+            test_mode=True
+        )
 
 
 def main() -> None:
     """execution entry point"""
     parse_args_for_train_script()
     trainer = Trainer()
-    trainer()
+    trainer.run()
 
 
 if __name__ == "__main__":

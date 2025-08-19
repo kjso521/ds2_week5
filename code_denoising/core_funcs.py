@@ -18,6 +18,7 @@ from scipy.io import savemat
 from torch import Tensor
 from torch.optim import Adam, AdamW
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from common.logger import logger
 from common.metric import calculate_psnr, calculate_ssim
@@ -288,11 +289,12 @@ def test_part_dncnn(
 
 
 def test_part(
-    epoch: int,
     data_loader: DataLoader,
     network: NETWORK,
     run_dir: Path,
     save_val: bool,
+    epoch: int,
+    test_mode: bool = False, # Add test_mode flag
 ) -> float:
     test_state = MetricController()
     test_state.reset()
@@ -300,18 +302,39 @@ def test_part(
     model = network.module if isinstance(network, torch.nn.DataParallel) else network
 
     img_cnt: int = 0
-    for _data in data_loader:
-        if ModelType.from_string(config.model_type) == ModelType.DnCNN:
-            batch_cnt = test_part_dncnn(
-                _data=_data,
+    data_key_img = DataKey.image_noise if not test_mode else DataKey.Label # In test mode, input is clean
+    
+    for _data in tqdm(data_loader, leave=False):
+        # In controlled mode, input is always image_noise, ground truth is image_gt
+        # The logic for test_mode needs to be re-evaluated, but for now, we use a consistent input key.
+        input_tensor = _data[DataKey.image_noise].to(config.device)
+        label_tensor = _data[DataKey.image_gt].to(config.device)
+        
+        batch_cnt = input_tensor.shape[0]
+
+        validate_tensors([input_tensor, label_tensor])
+        validate_tensor_dimensions([input_tensor, label_tensor], 4)
+
+        output = model(input_tensor)
+
+        validate_tensors([output])
+        validate_tensor_dimensions([output], 4)
+
+        for idx in range(output.shape[0]):
+            test_state.add("psnr", calculate_psnr(output[idx : idx + 1, ...], label_tensor[idx : idx + 1, ...]))
+            test_state.add("ssim", calculate_ssim(output[idx : idx + 1, ...], label_tensor[idx : idx + 1, ...]))
+
+        if save_val:
+            save_result_to_mat(
                 test_dir=run_dir / f"test/ep_{epoch}",
-                model=model,
-                save_val=save_val and img_cnt <= config.save_max_idx,
-                test_state=test_state,
+                batch_cnt=batch_cnt,
+                tesner_dict={
+                    "noisy": input_tensor,
+                    "output": output,
+                    "label": label_tensor,
+                },
                 img_cnt=img_cnt,
             )
-        else:
-            raise KeyError("model type not matched")
 
         img_cnt += batch_cnt
 
