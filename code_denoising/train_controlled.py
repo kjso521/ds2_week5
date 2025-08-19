@@ -254,7 +254,7 @@ class Trainer:
 
 def main() -> None:
     """execution entry point"""
-    parse_args_for_train_script() # Call the parsing function at the very beginning
+    parse_args_for_train_script()
     trainer = Trainer()
     trainer()
 
