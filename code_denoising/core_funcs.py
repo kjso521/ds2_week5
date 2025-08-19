@@ -308,7 +308,7 @@ def test_part(
         # In controlled mode, input is always image_noise, ground truth is image_gt
         # The logic for test_mode needs to be re-evaluated, but for now, we use a consistent input key.
         input_tensor = _data[DataKey.image_noise].to(config.device)
-        label_tensor = _data[DataKey.image_gt].to(config.device)
+        label_tensor = _data[DataKey.image_gt].to(config.device) # Use the correct DataKey name
         
         batch_cnt = input_tensor.shape[0]
 
