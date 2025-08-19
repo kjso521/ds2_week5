@@ -107,19 +107,21 @@ class RandomDataWrapper(Dataset):
         if self.training_mode:
             image_gt_np = self._augment(image_gt_np)
         
-        image_noise_np = image_gt_np.copy()
+        # Convert NumPy array to a 4D Torch Tensor for simulators
+        image_noise_tensor = torch.from_numpy(image_gt_np.copy()).unsqueeze(0).unsqueeze(0)
         
         if self.augmentation_mode == 'conv_only' or self.augmentation_mode == 'both':
             direction = random.choice(self.conv_directions)
-            image_noise_np = self.forward_simulator(image_noise_np, B0_dir=direction)
+            image_noise_tensor = self.forward_simulator(image_noise_tensor, B0_dir=direction)
             
         if self.augmentation_mode == 'noise_only' or self.augmentation_mode == 'both':
             sigma = random.choice(self.noise_levels)
-            image_noise_np = self.noise_simulator.add_noise(image_noise_np, sigma, self.noise_type)
+            self.noise_simulator.noise_sigma = sigma # Update sigma in real-time
+            image_noise_tensor = self.noise_simulator(image_noise_tensor)
         
         return {
             DataKey.image_gt: torch.from_numpy(image_gt_np.copy()).unsqueeze(0),
-            DataKey.image_noise: torch.from_numpy(image_noise_np.copy()).unsqueeze(0),
+            DataKey.image_noise: image_noise_tensor.squeeze(0),
             DataKey.name: _name,
         }
 
@@ -143,27 +145,30 @@ class ControlledDataWrapper(RandomDataWrapper):
         if self.training_mode:
             image_gt_np = self._augment(image_gt_np)
 
-        image_noise_np = image_gt_np.copy()
+        # Convert NumPy array to a 4D Torch Tensor for simulators
+        image_noise_tensor = torch.from_numpy(image_gt_np.copy()).unsqueeze(0).unsqueeze(0)
 
         if self.augmentation_mode == 'noise_only':
             if len(self.noise_levels) > 0:
                 noise_level = self.noise_levels[(self.current_epoch + idx) % len(self.noise_levels)]
-                image_noise_np = self.noise_simulator.add_noise(image_noise_np, noise_level, self.noise_type)
+                self.noise_simulator.noise_sigma = noise_level
+                image_noise_tensor = self.noise_simulator(image_noise_tensor)
         elif self.augmentation_mode == 'conv_only':
             if len(self.conv_directions) > 0:
                 conv_direction = self.conv_directions[(self.current_epoch + idx) % len(self.conv_directions)]
-                image_noise_np = self.forward_simulator(image_noise_np, conv_direction)
+                image_noise_tensor = self.forward_simulator(image_noise_tensor, conv_direction)
         elif self.augmentation_mode == 'both':
             if self.total_combinations > 0:
                 combination_idx = (self.current_epoch + idx) % self.total_combinations
                 noise_level, conv_direction = self.noise_conv_combinations[combination_idx]
                 
-                image_noise_np = self.forward_simulator(image_noise_np, conv_direction)
-                image_noise_np = self.noise_simulator.add_noise(image_noise_np, noise_level, self.noise_type)
+                image_noise_tensor = self.forward_simulator(image_noise_tensor, conv_direction)
+                self.noise_simulator.noise_sigma = noise_level
+                image_noise_tensor = self.noise_simulator(image_noise_tensor)
 
         return {
             DataKey.image_gt: torch.from_numpy(image_gt_np.copy()).unsqueeze(0),
-            DataKey.image_noise: torch.from_numpy(image_noise_np.copy()).unsqueeze(0),
+            DataKey.image_noise: image_noise_tensor.squeeze(0),
             DataKey.name: _name,
         }
 
