@@ -1,8 +1,9 @@
 import os
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field, fields, MISSING
 from enum import Enum
 from argparse import ArgumentParser
 import torch
+import typing
 
 # ... (Previous dataclasses: GeneralConfig, DnCNNConfig, UnetConfig) ...
 # I will rewrite the entire file content as it was corrupted.
@@ -89,23 +90,29 @@ dncnnconfig = DnCNNConfig()
 unetconfig = UnetConfig()
 
 def update_config_from_args(config_obj, args_obj):
-    for field in fields(config_obj):
-        if hasattr(args_obj, field.name):
-            setattr(config_obj, field.name, getattr(args_obj, field.name))
+    for f in fields(config_obj):
+        if hasattr(args_obj, f.name):
+            setattr(config_obj, f.name, getattr(args_obj, f.name))
 
 def parse_args_for_train_script():
     parser = ArgumentParser()
     for cfg_class in [GeneralConfig, DnCNNConfig, UnetConfig]:
-        for field in fields(cfg_class):
-            # This is a simplified parser setup; more complex types might need special handling
-            if field.type == list:
-                parser.add_argument(f"--{field.name}", nargs='*', default=field.default_factory())
-            elif field.type == bool:
-                 parser.add_argument(f"--{field.name}", action='store_true' if not field.default else 'store_false')
-            elif field.type != torch.device:
-                parser.add_argument(f"--{field.name}", type=field.type, default=field.default)
+        for f in fields(cfg_class):
+            default_val = f.default
+            if f.default_factory is not MISSING:
+                default_val = f.default_factory()
+
+            if typing.get_origin(f.type) is list:
+                # This correctly handles types like list[float] and list[tuple]
+                parser.add_argument(f"--{f.name}", nargs='+', default=default_val)
+            elif f.type is bool:
+                # Simplified boolean handling
+                parser.add_argument(f"--{f.name}", type=bool, default=default_val)
+            elif f.type is not torch.device:
+                parser.add_argument(f"--{f.name}", type=f.type, default=default_val)
 
     args = parser.parse_args()
+
     update_config_from_args(config, args)
     update_config_from_args(dncnnconfig, args)
     update_config_from_args(unetconfig, args)
@@ -114,10 +121,10 @@ def parse_args_for_train_script():
     if not torch.cuda.is_available() or torch.cuda.device_count() <= 1:
         config.parallel = False
     
-    # Update paths to be absolute based on DATA_ROOT
-    config.train_dataset = [os.path.join(config.DATA_ROOT, "train")]
-    config.valid_dataset = [os.path.join(config.DATA_ROOT, "val")]
-    config.test_dataset = [os.path.join(config.DATA_ROOT, "val")]
+    if config.DATA_ROOT:
+        config.train_dataset = [os.path.join(config.DATA_ROOT, "train")]
+        config.valid_dataset = [os.path.join(config.DATA_ROOT, "val")]
+        config.test_dataset = [os.path.join(config.DATA_ROOT, "val")]
 
 if __name__ == "__main__":
     pass
