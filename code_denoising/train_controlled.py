@@ -143,7 +143,7 @@ class Trainer:
     def _set_network(self) -> None:
         self.model = get_model(config).to(config.device)
         self.optimizer = get_optimizer(config, self.model.parameters())
-        self.scheduler = ReduceLROnPlateau(self.optimizer, 'max', factor=config.lr_decay, patience=config.lr_tol, verbose=True)
+        self.scheduler = ReduceLROnPlateau(self.optimizer, 'max', factor=config.lr_decay, patience=config.lr_tol)
         self.loss_model = get_loss_model(config).to(config.device)
 
         if config.parallel:
