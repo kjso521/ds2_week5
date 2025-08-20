@@ -344,10 +344,9 @@ def test_part(
 
             img_cnt += batch_cnt
 
+    primary_metric_val = test_state.state.psnr.avg
     logger.info(
-        f"Validation Result - PSNR: {test_state.state.psnr.avg:.4f}, "
-        f"SSIM: {test_state.state.ssim.avg:.4f}"
+        f"[{'Test' if test_mode else 'Valid'}] PSNR: {test_state.state.psnr.avg:.3f}, SSIM: {test_state.state.ssim.avg:.3f}"
     )
-    
-    # log_summary(init_time=config.init_time, state=test_state, log_std=True)
-    return test_state.mean("psnr")
+
+    return primary_metric_val
