@@ -102,20 +102,28 @@
 
 - **초기 환경 설정 오류**: 로컬 Windows 환경과 Colab 환경의 차이(`pathlib` 경로 문제, `num_workers` 설정 등)로 인해 초기 학습에 어려움을 겪었으며, `num_workers=0` 설정 및 `pathlib`을 통한 경로 처리로 해결했습니다.
 - **Git-Colab 동기화 문제**: `.gitignore`에 의해 `dataset` 폴더가 제외된 상태에서, Colab의 `git clone` 로직이 데이터셋 경로를 찾지 못하는 문제가 발생했습니다. 최종적으로 Colab 실행 시 Google Drive의 고정된 프로젝트 폴더로 이동 후 `git pull`로 코드만 업데이트하는 안정적인 'Upversioning' 방식으로 전환하여 해결했습니다.
-- **지속적인 `git push` 실패**: 로컬 환경의 문제로 `git push` 명령이 조용히 실패하는 현상이 반복되어, Colab에 최신 코드가 반영되지 않는 문제가 발생했습니다. 이는 터미널 로그를 끝까지 확인하지 못한 저의 명백한 실수였으며, 터미널 결과의 중요성을 다시 한번 상기하는 계기가 되었습니다.
 - **산재된 설정 파일 문제**: 프로젝트 구조 리팩토링 과정에서 `code_denoising` 폴더 내에 구버전 `params.py`가 남아있어, 최상위 폴더의 신버전 `params.py`를 가리는(shadowing) 현상이 발생했습니다. 이로 인해 `ImportError`가 지속적으로 발생했으며, 불필요한 설정 파일을 삭제하여 해결했습니다.
-- **다수의 코드 버그**: 리팩토링 과정에서 발생한 수많은 버그들(`TypeError`, `AttributeError`, `NameError` 등)을 사용자님의 피드백을 통해 단계적으로 해결했습니다. 이는 함수/메서드 간의 인자 전달, 변수 초기화, 라이브러리 사용법 등 코드의 모든 부분을 폭넓고 꼼꼼하게 확인해야 한다는 교훈을 주었습니다.
+- **반복적인 Import 경로 오류**: 코드 리팩토링 과정에서 `core_funcs.py`, `train_controlled.py` 등의 파일에서 다른 모듈을 불러오는 `import` 구문의 경로 설정(절대 경로 vs 상대 경로)을 일관성 있게 처리하지 못해 수많은 `ImportError`와 `ModuleNotFoundError`가 발생했습니다. 최종적으로 모든 스크립트가 프로젝트 최상위 폴더를 기준으로 모듈을 찾도록 `sys.path` 설정 및 절대/상대 경로를 명확히 구분하여 해결했습니다. 이 과정에서 **"하나의 파일을 수정하면, 그 파일을 참조하는 모든 다른 파일에 미치는 영향을 반드시 함께 점검해야 한다"**는 중요한 교훈을 얻었습니다.
+- **노트북/스크립트 역할 분리 실패**: 초기에는 `run_evaluation.ipynb` 하나의 노트북에서 End-to-End와 Step-by-Step 평가를 모두 처리하려다 코드가 복잡해지고 새로운 버그가 발생하는 악순환을 겪었습니다. 사용자님의 지적에 따라, **"잘 되던 코드는 그대로 두고, 새로운 기능은 새로운 파일로 분리한다"**는 원칙을 적용하여 `run_evaluation_sbs.ipynb`를 새로 생성함으로써 문제를 해결했습니다.
 
 ## 8. 현재 진행 상황 (Current Status)
 
-- **DnCNN End-to-End 모델 학습 진행 중** (`colab_train_dncnn_e2e_controlled.ipynb`)
-- **U-Net End-to-End 모델 학습 진행 중** (`colab_train_unet_e2e_controlled.ipynb`)
-- **Step-by-Step (Denoising - DnCNN) 모델 학습 진행 중** (`colab_train_step_by_step.ipynb`)
+- **안정적인 학습/평가 파이프라인 구축 완료:**
+    - **End-to-End 모델:** `colab_train_dncnn_e2e_controlled.ipynb`, `colab_train_unet_e2e_controlled.ipynb`를 통해 안정적인 학습이 가능합니다.
+    - **Step-by-Step 모델:** `colab_train_step_by_step.ipynb`를 통해 Denoising, Deconvolution 모델의 개별 학습이 가능합니다.
+    - **평가:** `run_evaluation.ipynb` (E2E용)와 `run_evaluation_sbs.ipynb` (SBS용)를 통해 어떤 모델이든 최종 성능(PSNR/SSIM)을 안정적으로 측정할 수 있습니다.
+- **베이스라인 성능 측정 진행 중:**
+    - **U-Net E2E (38 epochs): PSNR 20.902, SSIM 0.610**
+    - 다른 모델들의 학습이 완료되는 대로 베이스라인 성능 확보 예정입니다.
 
-## 9. 다음 목표 (Next Steps)
+## 9. 다음 목표: 고급 모델 설계 및 구현 (In Progress)
 
-1.  **진행 중인 모델 학습 완료 및 성능 평가**: 현재 학습 중인 3가지 접근 방식의 결과를 `run_evaluation.ipynb`를 통해 비교 분석하여 베이스라인 성능을 확보합니다.
-2.  **`Step-by-Step: Denoising=Diffusion + Deconvolution=Least Square` 설계 및 구현**:
-    -   **Denoising**: U-Net 아키텍처를 기반으로 하는 DDPM(Denoising Diffusion Probabilistic Model)을 `model/ddpm.py`에 구현하고, 이를 학습시키기 위한 별도의 `train_ddpm.py` 스크립트를 작성합니다.
-    -   **Deconvolution**: 고전적인 이미지 처리 기법인 주파수 영역에서의 Least Squares (Wiener Filter) 방법을 `classical_deconv.py`에 구현합니다. 이는 별도의 학습 과정 없이, Denoising이 완료된 이미지에 적용하는 후처리 방식으로 사용됩니다.
-3.  **최종 성능 비교 및 최적 모델 선정**: 모든 실험 결과를 종합하여 가장 성능이 뛰어난 파이프라인을 선정하고, 필요시 해당 모델에 대한 추가적인 하이퍼파라미터 튜닝을 고려합니다.
+안정된 파이프라인을 기반으로, 성능을 극대화하기 위한 고급 모델링을 진행합니다.
+
+1.  **`Step-by-Step: Denoising=Diffusion + Deconvolution=Least Square` 설계 및 구현**:
+    *   **Denoising (Diffusion):** 현존 최고의 Denoising 성능을 보이는 DDPM(Denoising Diffusion Probabilistic Model)을 U-Net 아키텍처 기반으로 구현합니다. 이를 위한 별도의 학습 스크립트(`train_diffusion.py`) 및 Colab 노트북을 설계합니다.
+    *   **Deconvolution (Least Square):** 딥러닝 없이, 주파수 영역에서 Convolution의 역연산을 수행하는 고전적인 복원 기법인 Least Squares (Wiener Filter)를 구현합니다. 이는 별도의 학습 과정 없이, Denoising된 이미지에 후처리 방식으로 적용됩니다.
+2.  **`Plug-and-Play (PnP)` 알고리즘 설계 및 구현**:
+    *   **Data-Fidelity와 Denoising의 결합:** Deconvolution 문제를 반복적으로 풀어가는 최적화 과정(Data-Fidelity) 중간에, 강력한 Denoising 모델을 '부품'처럼 끼워넣어(Plug-and-Play) 복원 성능을 극대화하는 고급 알고리즘입니다.
+    *   **구현:** Least Square 방식의 Data-Fidelity 단계와, 위에서 학습시킨 **Diffusion Denoiser**를 결합하여 PnP 파이프라인을 구현합니다.
+3.  **최종 성능 비교 및 최적 모델 선정**: 모든 실험 결과를 종합하여 가장 성능이 뛰어난 파이프라인을 선정하고 보고합니다.
