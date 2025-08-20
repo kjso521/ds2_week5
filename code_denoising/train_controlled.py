@@ -82,7 +82,7 @@ class Trainer:
         self._set_data()
         self._set_network()
         self._train()
-        self._test("best") # Call test after training is finished
+        self._test("best")  # Call test after training is finished
 
     @error_wrap
     def _set_data(self) -> None:
@@ -200,37 +200,45 @@ class Trainer:
         )
 
         self.primary_metric = primary_metric
-        self.scheduler.step(primary_metric)
 
         if primary_metric > self.best_metric:
             logger.success("Best model renewed")
             self.best_metric = primary_metric
-            save_checkpoint(self.model, self.run_dir, model_type=config.model_type) # Saves as checkpoint_best.ckpt
+            save_checkpoint(self.model, self.run_dir, epoch=self.epoch, model_type=config.model_type)  # Save best model with epoch info
             return True
         return False
 
     @error_wrap
     def _test(self, tag: str) -> None:
         """Test"""
-        logger.info(f"Test with {tag} model from epoch {self.best_metric:.4f}") # Log best metric
-
+        
         if tag == "best":
-            checkpoint_path = self.run_dir / "checkpoints" / "checkpoint_best.ckpt" # Correct path
+            checkpoint_path = self.run_dir / "checkpoints" / f"checkpoint_epoch_{self.best_epoch}.ckpt"
             if not checkpoint_path.exists():
-                logger.warning(f"best checkpoint not found in {checkpoint_path}. Skipping test.")
-                return
-            
+                # Fallback for older save format
+                checkpoint_path = self.run_dir / "checkpoints" / "checkpoint_best.ckpt"
+                if not checkpoint_path.exists():
+                    logger.warning(f"Best checkpoint not found in {checkpoint_path}. Skipping test.")
+                    return
+
             checkpoint = torch.load(checkpoint_path)
+            best_epoch_info = checkpoint.get('epoch', 'N/A') # Get epoch from checkpoint
+            logger.info(f"Test with '{tag}' model from epoch {best_epoch_info}")
+            
             state_dict = checkpoint.get('model_state_dict')
             if state_dict:
                 model_to_load = self.model.module if isinstance(self.model, torch.nn.DataParallel) else self.model
                 model_to_load.load_state_dict(state_dict)
             else:
                 logger.error("Could not find a valid state_dict in the checkpoint.")
+                return
+        else:
+            logger.info(f"Test with current model at epoch {self.epoch}")
+
 
         test_part(
-            data_loader=self.test_loader, 
-            network=self.model, 
+            data_loader=self.test_loader,
+            network=self.model,
             run_dir=self.run_dir, 
             save_val=True, 
             epoch=self.epoch, 
