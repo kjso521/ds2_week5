@@ -344,9 +344,9 @@ def test_part(
 
             img_cnt += batch_cnt
 
-    primary_metric_val = test_state.state.psnr.avg
+    primary_metric_val = test_state.mean("psnr")
     logger.info(
-        f"[{'Test' if test_mode else 'Valid'}] PSNR: {test_state.state.psnr.avg:.3f}, SSIM: {test_state.state.ssim.avg:.3f}"
+        f"[{'Test' if test_mode else 'Valid'}] PSNR: {test_state.mean('psnr'):.3f}, SSIM: {test_state.mean('ssim'):.3f}"
     )
 
     return primary_metric_val
