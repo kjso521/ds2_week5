@@ -116,14 +116,27 @@
     - **U-Net E2E (38 epochs): PSNR 20.902, SSIM 0.610**
     - 다른 모델들의 학습이 완료되는 대로 베이스라인 성능 확보 예정입니다.
 
-## 9. 다음 목표: 고급 모델 설계 및 구현 (In Progress)
+## 9. 고급 복원 모델 구현 완료 (Completed)
 
-안정된 파이프라인을 기반으로, 성능을 극대화하기 위한 고급 모델링을 진행합니다.
+성능 극대화를 위한 고급 복원 방법론 3종 및 최종 PnP 프레임워크의 구현을 완료했습니다.
 
-1.  **`Step-by-Step: Denoising=Diffusion + Deconvolution=Least Square` 설계 및 구현**:
-    *   **Denoising (Diffusion):** 현존 최고의 Denoising 성능을 보이는 DDPM(Denoising Diffusion Probabilistic Model)을 U-Net 아키텍처 기반으로 구현합니다. 이를 위한 별도의 학습 스크립트(`train_diffusion.py`) 및 Colab 노트북을 설계합니다.
-    *   **Deconvolution (Least Square):** 딥러닝 없이, 주파수 영역에서 Convolution의 역연산을 수행하는 고전적인 복원 기법인 Least Squares (Wiener Filter)를 구현합니다. 이는 별도의 학습 과정 없이, Denoising된 이미지에 후처리 방식으로 적용됩니다.
-2.  **`Plug-and-Play (PnP)` 알고리즘 설계 및 구현**:
-    *   **Data-Fidelity와 Denoising의 결합:** Deconvolution 문제를 반복적으로 풀어가는 최적화 과정(Data-Fidelity) 중간에, 강력한 Denoising 모델을 '부품'처럼 끼워넣어(Plug-and-Play) 복원 성능을 극대화하는 고급 알고리즘입니다.
-    *   **구현:** Least Square 방식의 Data-Fidelity 단계와, 위에서 학습시킨 **Diffusion Denoiser**를 결합하여 PnP 파이프라인을 구현합니다.
-3.  **최종 성능 비교 및 최적 모델 선정**: 모든 실험 결과를 종합하여 가장 성능이 뛰어난 파이프라인을 선정하고 보고합니다.
+1.  **과제 맞춤형 Deconvolution (`ClippedInverseFilter`):**
+    *   참조 코드(`tkd.py`) 분석을 통해, 일반적인 Wiener Filter가 아닌 **"제한된 역필터(Clipped Inverse Filter)"** 방식이 과제의 핵심임을 파악하고 `torch` 기반으로 재구현했습니다.
+    *   `code_denoising/classical_methods/deconvolution.py`에 구현 완료.
+
+2.  **Diffusion 기반 방법론 (Hugging Face `diffusers` 라이브러리 활용):**
+    *   **PnP용 Denoiser (`HuggingFace_Denoiser`):** PnP 프레임워크에 "부품"처럼 사용할 수 있도록, 사전 학습된 Diffusion 모델을 래핑(wrapping)한 Denoising 모듈을 구현했습니다.
+    *   **고성능 복원 모델 (`DiffPIR_Pipeline`):** Diffusion 생성 과정의 매 스텝마다 Deconvolution을 위한 물리적 제약(guidance)을 추가하여 복원 성능을 극대화하는 SOTA 모델 DiffPIR을 커스텀 파이프라인으로 구현했습니다.
+    *   `code_denoising/diffusion_methods/` 디렉터리에 각각 구현 완료.
+
+3.  **최종 PnP 프레임워크 (`PnP_Restoration`):**
+    *   위에서 구현한 Deconvolution 로직(Data-Fidelity)과 `HuggingFace_Denoiser`(Prior)를 PnP-ADMM 알고리즘으로 결합하는 최종 복원 프레임워크를 구현했습니다.
+    *   `code_denoising/pnp_restoration.py`에 구현 완료.
+
+## 10. 다음 목표: 개별 컴포넌트 검증 및 PnP 튜닝 (In Progress)
+
+구현된 모든 고급 방법론들의 성능을 검증하고 최적의 조합을 찾습니다.
+
+1.  **개별 컴포넌트 검증:** `run_diffusion_tests.ipynb` 노트북을 사용하여 `ClippedInverseFilter`, `HuggingFace_Denoiser`, `DiffPIR_Pipeline` 각각의 성능을 시각적으로 확인하고, 각 모듈이 의도대로 동작하는지 검증합니다.
+2.  **PnP 하이퍼파라미터 튜닝:** `PnP_Restoration`의 성능에 영향을 미치는 주요 하이퍼파라미터 (`rho`, `max_iter`, `denoiser_noise_level`)를 조정하며 최적의 복원 결과를 도출합니다.
+3.  **최종 성능 비교 및 보고:** 모든 방법론(DnCNN, U-Net, ClippedInverseFilter, DiffPIR, PnP)의 최종 복원 결과를 정량적(PSNR/SSIM) 및 정성적으로 비교 분석하여 최적의 솔루션을 선정하고 보고합니다.
